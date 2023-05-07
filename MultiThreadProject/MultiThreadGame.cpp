@@ -48,15 +48,23 @@ void MultiThreadGame::PickItem(MultiThreadClient* pClient, std::string_view name
     }
 }
 
-void MultiThreadGame::DropItem(MultiThreadClient* pClient, std::string_view name, int amount)
+int MultiThreadGame::DropItem(MultiThreadClient* pClient, std::string_view name, int amount)
 {
     if (pClient != NULL)
     {
+        int remaining = pClient->GetItemCount(name);
+        if (remaining < amount)
+        {
+            amount = remaining;
+        }
+
         pClient->DropItem(name, amount);
+        return amount;
     }
     else
     {
         std::cerr << "Trying to drop an item on a null client" << std::endl;
+        return 0;
     }
 }
 
@@ -74,8 +82,13 @@ void MultiThreadGame::GiveItem(MultiThreadClient* pFromClient, MultiThreadClient
         return;
     }
 
-    pFromClient->DropItem(name, amount);
-    pToClient->PickItem(name, amount);
+    int removed = Instance.DropItem(pFromClient, name, amount);
+    if (removed < amount)
+    {
+        std::cout << "As giving client only have " << removed << " " << name << ", only giving " << removed << std::endl;
+    }
+
+    Instance.PickItem(pToClient, name, removed);
 }
 
 MultiThreadGame::MultiThreadGame()
