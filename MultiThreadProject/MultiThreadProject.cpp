@@ -12,10 +12,14 @@
 using namespace std::literals::chrono_literals;
 bool running = true;
 
-void PlayerThread()
+void GameLoop()
 {
     while (running)
     {
+        MultiThreadGame::Instance.ApplyOnEachClient([](MultiThreadClient* pClient) {
+            MultiThreadGame::Instance.PickItem(pClient, MONEY, 1);
+        });
+
         std::this_thread::sleep_for(20ms);
     }
 }
@@ -111,10 +115,10 @@ void InputThread()
 
 int main()
 {
-    std::thread playerThread = std::thread(PlayerThread);
+    std::thread gameloop = std::thread(GameLoop);
     std::thread inputThread = std::thread(InputThread);
 
+    gameloop.join();
     inputThread.join();
-    playerThread.join();
     return 0;
 }

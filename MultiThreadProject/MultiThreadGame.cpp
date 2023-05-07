@@ -20,9 +20,11 @@ void MultiThreadGame::RegisterClient(MultiThreadClient* pClient)
 
 MultiThreadClient* const MultiThreadGame::GetRandomClient()
 {
+    lock.lock();
     int count = clients.size();
     if (count == 0)
     {
+        lock.unlock();
         throw std::exception("Cannot Get a random client as there is none");
     }
 
@@ -33,7 +35,10 @@ MultiThreadClient* const MultiThreadGame::GetRandomClient()
         iterator++;
     }
 
-    return (*iterator).second;
+    MultiThreadClient* result = (*iterator).second;
+    lock.unlock();
+
+    return result;
 }
 
 void MultiThreadGame::PickItem(MultiThreadClient* pClient, std::string_view name, int amount)
@@ -91,14 +96,28 @@ void MultiThreadGame::GiveItem(MultiThreadClient* pFromClient, MultiThreadClient
     Instance.PickItem(pToClient, name, removed);
 }
 
+void MultiThreadGame::ApplyOnEachClient(std::function<void(MultiThreadClient*)> function)
+{
+    lock.lock();
+    for (auto iterator = clients.begin(); iterator != clients.end(); iterator++)
+    {
+        function((*iterator).second);
+    }
+
+    lock.unlock();
+}
+
 MultiThreadGame::MultiThreadGame()
 {
 }
 
 MultiThreadGame::~MultiThreadGame()
 {
+    lock.lock();
     for (auto iterator = clients.begin(); iterator != clients.end(); iterator++)
     {
         delete (*iterator).second;
     }
+
+    lock.unlock();
 }
