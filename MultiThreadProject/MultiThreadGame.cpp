@@ -18,6 +18,24 @@ void MultiThreadGame::RegisterClient(MultiThreadClient* pClient)
     }
 }
 
+MultiThreadClient* const MultiThreadGame::GetRandomClient()
+{
+    int count = clients.size();
+    if (count == 0)
+    {
+        throw std::exception("Cannot Get a random client as there is none");
+    }
+
+    int random = rand() % count;
+    auto iterator = clients.begin();
+    for (int index = 0; index < random; index++)
+    {
+        iterator++;
+    }
+
+    return (*iterator).second;
+}
+
 void MultiThreadGame::PickItem(MultiThreadClient* pClient, std::string_view name, int amount)
 {
     if (pClient != NULL)
