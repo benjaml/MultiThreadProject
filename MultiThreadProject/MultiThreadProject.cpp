@@ -10,7 +10,7 @@
 #define MONEY "Money"
 
 using namespace std::literals::chrono_literals;
-bool running = true;
+volatile bool running = true;
 
 void GameLoop()
 {
