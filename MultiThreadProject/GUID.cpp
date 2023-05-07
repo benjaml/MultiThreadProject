@@ -7,7 +7,6 @@ std::unordered_set<GUID, std::hash<GUID>> GUID::usedGUIDs;
 
 GUID GUID::GetNextGUID()
 {
-    std::cout << "Creating temp GUID" << std::endl;
     uint16_t a = (uint16_t)rand();
     uint16_t b = (uint16_t)rand();
     uint16_t c = (uint16_t)rand();
@@ -35,12 +34,26 @@ std::string GUID::ToString()
 GUID::GUID()
 {
     a = b = c = d = 0;
-    std::cout << "Default GUID constructor" << ToString() << " at address : " << this << std::endl;
+}
+
+GUID::GUID(uint16_t _a, uint16_t _b, uint16_t _c, uint16_t _d)
+{
+    a = _a;
+    b = _b;
+    c = _c;
+    d = _d;
+}
+
+GUID::GUID(const GUID& ref)
+{
+    a = ref.a;
+    b = ref.b;
+    c = ref.c;
+    d = ref.d;
 }
 
 GUID::~GUID()
 {
-    std::cout << "Delete GUID : " << ToString() << " at address : " << this << std::endl;
 }
 
 bool GUID::operator==(const GUID& other) const
@@ -51,24 +64,6 @@ bool GUID::operator==(const GUID& other) const
 bool GUID::operator<(const GUID& other) const
 {
     return std::hash<GUID>{}(*this) < std::hash<GUID>{}(other);
-}
-
-GUID::GUID(uint16_t _a, uint16_t _b, uint16_t _c, uint16_t _d)
-{
-    a = _a;
-    b = _b;
-    c = _c;
-    d = _d;
-    std::cout << "Create GUID : " << ToString() << " at address : " << this << std::endl;
-}
-
-GUID::GUID(const GUID& ref)
-{
-    a = ref.a;
-    b = ref.b;
-    c = ref.c;
-    d = ref.d;
-    std::cout << "Create GUID  by copy : " << ToString() << " at address : " << this << std::endl;
 }
 
 inline size_t std::hash<GUID>::operator()(const GUID& guid) const
