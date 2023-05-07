@@ -30,10 +30,7 @@ MultiThreadClient* const MultiThreadGame::GetRandomClient()
 
     int random = rand() % count;
     auto iterator = clients.begin();
-    for (int index = 0; index < random; index++)
-    {
-        iterator++;
-    }
+    std::advance(iterator, random);
 
     MultiThreadClient* result = (*iterator).second;
     lock.unlock();
@@ -99,7 +96,7 @@ void MultiThreadGame::GiveItem(MultiThreadClient* pFromClient, MultiThreadClient
 void MultiThreadGame::ApplyOnEachClient(std::function<void(MultiThreadClient*)> function)
 {
     lock.lock();
-    for (auto iterator = clients.begin(); iterator != clients.end(); iterator++)
+    for (auto iterator = clients.begin(); iterator != clients.end(); ++iterator)
     {
         function((*iterator).second);
     }
@@ -114,7 +111,7 @@ MultiThreadGame::MultiThreadGame()
 MultiThreadGame::~MultiThreadGame()
 {
     lock.lock();
-    for (auto iterator = clients.begin(); iterator != clients.end(); iterator++)
+    for (auto iterator = clients.begin(); iterator != clients.end(); ++iterator)
     {
         delete (*iterator).second;
     }
