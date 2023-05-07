@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+.vs
+MultiThreadProject/x64
+Racknet
+x64
