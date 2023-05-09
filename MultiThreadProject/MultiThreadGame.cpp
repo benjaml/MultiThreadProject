@@ -104,9 +104,88 @@ void MultiThreadGame::ApplyOnEachClient(std::function<void(MultiThreadClient*)> 
     lock.unlock();
 }
 
-void MultiThreadGame::QueueOrder(Order&& order)
+void MultiThreadGame::QueueOrder(Order* order)
 {
     OrderStack.push(order);
+}
+
+void MultiThreadGame::ProcessOrders()
+{
+    while (!OrderStack.empty())
+    {
+        Order* order = OrderStack.front();
+        OrderStack.pop();
+        switch (order->Type)
+        {
+        case Order::OrderType::PickItem:
+        {
+            PickItemOrder* pOrder = (PickItemOrder*)order;
+
+            MultiThreadClient* client = clients[pOrder->ClientGUID];
+            if (client == NULL)
+            {
+                std::cerr << "PickItem : Invalid client GUID" << std::endl;
+                continue;
+            }
+            else
+            {
+                std::cout << "Pick Item" << std::endl;
+                Instance.PickItem(client, pOrder->ItemName, pOrder->Amount);
+                std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(pOrder->ItemName) << std::endl;
+            }
+        }
+
+        break; 
+
+        case Order::OrderType::DropItem:
+        {
+            DropItemOrder* pOrder = (DropItemOrder*)order;
+
+            MultiThreadClient* client = clients[pOrder->ClientGUID];
+            if (client == NULL)
+            {
+                std::cerr << "DropItem : Invalid client GUID" << std::endl;
+                continue;
+            }
+            else
+            {
+                std::cout << "Drop Item" << std::endl;
+                Instance.DropItem(client, pOrder->ItemName, pOrder->Amount);
+                std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(pOrder->ItemName) << std::endl;
+            }
+        }
+
+        break;
+
+        case Order::OrderType::GiveItem:
+        {
+            GiveItemOrder* pOrder = (GiveItemOrder*)order;
+
+            MultiThreadClient* fromClient = clients[pOrder->ClientGUID];
+            MultiThreadClient* toClient = clients[pOrder->ClientGUID];
+            if (fromClient == NULL || toClient == NULL)
+            {
+                std::cerr << "DropItem : Invalid client GUID" << std::endl;
+                continue;
+            }
+            else
+            {
+                std::cout << "Give Item" << std::endl;
+                Instance.GiveItem(fromClient, toClient, pOrder->ItemName, pOrder->Amount);            
+                std::cout << "Client " << fromClient->ClientId.ToString() << " now have " << fromClient->GetItemCount(pOrder->ItemName) << " and Client " << toClient->ClientId.ToString() << " now have " << toClient->GetItemCount(pOrder->ItemName) << std::endl;
+
+            }
+        }
+            
+        break;
+
+        default:
+            std::cerr << "Order not supported" << std::endl;
+            break;
+        }
+
+        delete order;
+    }
 }
 
 MultiThreadGame::MultiThreadGame()

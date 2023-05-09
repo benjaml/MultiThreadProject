@@ -16,13 +16,14 @@ public:
     int DropItem(MultiThreadClient* pClient, std::string_view name, int amount);
     void GiveItem(MultiThreadClient* pFromClient, MultiThreadClient* pToClient, std::string_view name, int amount);
     void ApplyOnEachClient(std::function<void(MultiThreadClient*)> function);
-    void QueueOrder(Order&& order);
+    void QueueOrder(Order* order);
+    void ProcessOrders();
 
     MultiThreadGame();
     ~MultiThreadGame();
 
 private:
     std::map<GUID, MultiThreadClient*> clients;
-    std::queue<Order> OrderStack;
+    std::queue<Order*> OrderStack;
     std::mutex lock;
 };

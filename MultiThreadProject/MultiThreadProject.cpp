@@ -34,13 +34,8 @@ void ProcessInput(char input)
         try
         {
             MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
-            std::cout << "Pick Item" << std::endl;
-            MultiThreadGame::Instance.PickItem(client, MONEY, 20);
-
-            Order order =  { OrderType::PickItem, client->ClientId};
-
-            MultiThreadGame::Instance.QueueOrder(std::move(order));
-            std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(MONEY) << std::endl;
+            PickItemOrder* order = new PickItemOrder(client->ClientId, MONEY, 20);
+            MultiThreadGame::Instance.QueueOrder(order);
         }
         catch (std::exception e)
         {
@@ -54,9 +49,8 @@ void ProcessInput(char input)
         try
         {
             MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
-            std::cout << "Drop Item" << std::endl;
-            MultiThreadGame::Instance.DropItem(client, MONEY, 20);
-            std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(MONEY) << std::endl;
+            DropItemOrder* order = new DropItemOrder(client->ClientId, MONEY, 20);
+            MultiThreadGame::Instance.QueueOrder(order);
         }
         catch (std::exception e)
         {
@@ -76,9 +70,8 @@ void ProcessInput(char input)
                 toClient = MultiThreadGame::Instance.GetRandomClient();
             }
 
-            std::cout << "Give Item" << std::endl;
-            MultiThreadGame::Instance.GiveItem(fromClient, toClient, MONEY, 20);
-            std::cout << "Client " << fromClient->ClientId.ToString() << " now have " << fromClient->GetItemCount(MONEY) << " and Client " << toClient->ClientId.ToString() << " now have " << toClient->GetItemCount(MONEY) << std::endl;
+            GiveItemOrder* order = new GiveItemOrder(fromClient->ClientId, toClient->ClientId, MONEY, 20);
+            MultiThreadGame::Instance.QueueOrder(order);
         }
         catch (std::exception e)
         {
@@ -115,7 +108,7 @@ int main()
             MultiThreadGame::Instance.PickItem(pClient, MONEY, 1);
             });
 
-
+        MultiThreadGame::Instance.ProcessOrders();
 
 
         std::this_thread::sleep_for(20ms);
