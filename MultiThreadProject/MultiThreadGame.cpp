@@ -104,6 +104,11 @@ void MultiThreadGame::ApplyOnEachClient(std::function<void(MultiThreadClient*)> 
     lock.unlock();
 }
 
+void MultiThreadGame::QueueOrder(Order&& order)
+{
+    OrderStack.push(order);
+}
+
 MultiThreadGame::MultiThreadGame()
 {
 }

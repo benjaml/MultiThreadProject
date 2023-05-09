@@ -12,18 +12,6 @@
 using namespace std::literals::chrono_literals;
 volatile bool running = true;
 
-void GameLoop()
-{
-    while (running)
-    {
-        MultiThreadGame::Instance.ApplyOnEachClient([](MultiThreadClient* pClient) {
-            MultiThreadGame::Instance.PickItem(pClient, MONEY, 1);
-        });
-
-        std::this_thread::sleep_for(20ms);
-    }
-}
-
 void ProcessInput(char input)
 {
     switch (input)
@@ -48,6 +36,10 @@ void ProcessInput(char input)
             MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
             std::cout << "Pick Item" << std::endl;
             MultiThreadGame::Instance.PickItem(client, MONEY, 20);
+
+            Order order =  { OrderType::PickItem, client->ClientId};
+
+            MultiThreadGame::Instance.QueueOrder(std::move(order));
             std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(MONEY) << std::endl;
         }
         catch (std::exception e)
@@ -115,10 +107,20 @@ void InputThread()
 
 int main()
 {
-    std::thread gameloop = std::thread(GameLoop);
     std::thread inputThread = std::thread(InputThread);
 
-    gameloop.join();
+    while (running)
+    {
+        MultiThreadGame::Instance.ApplyOnEachClient([](MultiThreadClient* pClient) {
+            MultiThreadGame::Instance.PickItem(pClient, MONEY, 1);
+            });
+
+
+
+
+        std::this_thread::sleep_for(20ms);
+    }
+
     inputThread.join();
     return 0;
 }
