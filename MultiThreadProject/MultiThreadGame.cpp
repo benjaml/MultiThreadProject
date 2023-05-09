@@ -21,7 +21,7 @@ void MultiThreadGame::RegisterClient(MultiThreadClient* pClient)
 MultiThreadClient* const MultiThreadGame::GetRandomClient()
 {
     lock.lock();
-    int count = clients.size();
+    size_t count = clients.size();
     if (count == 0)
     {
         lock.unlock();
