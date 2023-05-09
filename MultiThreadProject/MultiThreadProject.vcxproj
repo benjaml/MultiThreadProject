@@ -153,6 +153,7 @@
     <ClInclude Include="GUID.h" />
     <ClInclude Include="MultiThreadClient.h" />
     <ClInclude Include="MultiThreadGame.h" />
+    <ClInclude Include="Order.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
