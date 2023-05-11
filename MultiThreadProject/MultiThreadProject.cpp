@@ -98,9 +98,9 @@ void InputThread()
     }
 }
 
-int main()
+int ServerMain()
 {
-    std::thread inputThread = std::thread(InputThread);
+    std::thread inputThread(InputThread);
 
     while (running)
     {
@@ -116,4 +116,43 @@ int main()
 
     inputThread.join();
     return 0;
+}
+
+int ClientMain()
+{
+    std::thread inputThread(InputThread);
+
+    while (running)
+    {
+        MultiThreadGame::Instance.ApplyOnEachClient([](MultiThreadClient* pClient) {
+            MultiThreadGame::Instance.PickItem(pClient, MONEY, 1);
+            });
+
+        MultiThreadGame::Instance.ProcessOrders();
+
+
+        std::this_thread::sleep_for(20ms);
+    }
+
+    inputThread.join();
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    if (argc == 2)
+    {
+        if (argv[1] == "Server")
+        {
+            ServerMain();
+        }
+        else
+        {
+            ClientMain();
+        }
+    }
+    else
+    {
+        std::cerr << "Need a command line argument : Client or Server" << std::endl;
+    }
 }
