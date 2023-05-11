@@ -55,7 +55,7 @@ struct GiveItemOrder : OrderWithOtherPlayer
 
 	GiveItemOrder(GUID fromClientGUID, GUID toClientGUID, std::string_view name, int amount)
 	{
-		Type = Order::OrderType::DropItem;
+		Type = Order::OrderType::GiveItem;
 		ClientGUID = fromClientGUID;
 		OtherClientGUID = toClientGUID;
 		ItemName = name;
