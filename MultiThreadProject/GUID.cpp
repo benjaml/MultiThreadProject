@@ -2,8 +2,10 @@
 #include <iostream>
 #include <random>
 #include <iostream>
+#include <mutex>
 
 std::unordered_set<GUID, std::hash<GUID>> GUID::usedGUIDs;
+std::mutex lock;
 
 GUID GUID::GetNextGUID()
 {
@@ -12,7 +14,9 @@ GUID GUID::GetNextGUID()
     uint16_t c = (uint16_t)rand();
     uint16_t d = (uint16_t)rand();
 
+    GUID::lock.lock();
     auto result = GUID::usedGUIDs.emplace(a, b, c, d);
+    GUID::lock.unlock();
     if (result.second)
     {
         return *result.first;

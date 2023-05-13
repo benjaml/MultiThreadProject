@@ -20,6 +20,7 @@ public:
 
 private:
     static std::unordered_set<GUID, std::hash<GUID>> usedGUIDs;
+    static std::mutex lock;
 };
 
 template<>
