@@ -2,11 +2,7 @@
 #include <thread>
 #include <iostream>
 #include <conio.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include "MultiThreadGame.h"
-#include "MultiThreadClient.h"
-#include "Defines.h"
+#include "Common.h"
 
 using namespace std::literals::chrono_literals;
 
@@ -15,56 +11,40 @@ using namespace std::literals::chrono_literals;
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
 
-
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
 
 SOCKET ConnectSocket = INVALID_SOCKET;
-
-void SendMessage(Message* order)
-{
-    const int length = order->size();
-    char* sendbuf = new char[length];
-    memcpy(sendbuf, order, length);
-    int iResult = send(ConnectSocket, sendbuf, length, 0);
-    if (iResult == SOCKET_ERROR) {
-        printf("send failed with error: %d\n", WSAGetLastError());
-        closesocket(ConnectSocket);
-        WSACleanup();
-    }
-}
 
 void OnMessageReceived(char* buffer)
 {
     Message* pBaseMessage = (Message*)buffer;
     switch (pBaseMessage->Type)
     {
-    case Message::MessageType::RegisterPlayerRequest:
-    {
-        RegisterPlayerRequestMessage* pMessage = new RegisterPlayerRequestMessage(*(RegisterPlayerRequestMessage*)pBaseMessage);
-        MultiThreadGame::Instance.QueueMessage(pMessage);
-        break;
-    }
     case Message::MessageType::RegisterPlayer:
     {
+        printf("Received RegisterPlayer message\n");
         RegisterPlayerMessage* pMessage = new RegisterPlayerMessage(*(RegisterPlayerMessage*)pBaseMessage);
         MultiThreadGame::Instance.QueueMessage(pMessage);
         break;
     }
     case Message::MessageType::PickItem:
     {
+        printf("Received PickItem message\n");
         PickItemMessage* pMessage = new PickItemMessage(*(PickItemMessage*)pBaseMessage);
         MultiThreadGame::Instance.QueueMessage(pMessage);
         break;
     }
     case Message::MessageType::DropItem:
     {
+        printf("Received DropItem message\n");
         DropItemMessage* pMessage = new DropItemMessage(*(DropItemMessage*)pBaseMessage);
         MultiThreadGame::Instance.QueueMessage(pMessage);
-        break; 
+        break;
     }
     case Message::MessageType::GiveItem:
     {
+        printf("Received GiveItem message\n");
         GiveItemMessage* pMessage = new GiveItemMessage(*(GiveItemMessage*)pBaseMessage);
         MultiThreadGame::Instance.QueueMessage(pMessage);
         break;
@@ -99,7 +79,8 @@ void ClientProcessInput(char input)
         {
             MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
             PickItemMessage* message = new PickItemMessage(client->ClientId, MONEY, 20);
-            SendMessage(message);
+            SendNetworkMessage(message, ConnectSocket);
+            printf("Send PickItemMessage\n");
         }
         catch (std::exception e)
         {
@@ -114,7 +95,8 @@ void ClientProcessInput(char input)
         {
             MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
             DropItemMessage* message = new DropItemMessage(client->ClientId, MONEY, 20);
-            SendMessage(message);
+            SendNetworkMessage(message, ConnectSocket);
+            printf("Send DropItemMessage\n");
         }
         catch (std::exception e)
         {
@@ -135,7 +117,8 @@ void ClientProcessInput(char input)
             }
 
             GiveItemMessage* message = new GiveItemMessage(fromClient->ClientId, toClient->ClientId, MONEY, 20);
-            SendMessage(message);
+            SendNetworkMessage(message, ConnectSocket);
+            printf("Send GiveItemMessage\n");
         }
         catch (std::exception e)
         {
@@ -162,6 +145,26 @@ void ClientInputThread()
     }
 }
 
+void ReceiveMessageThread()
+{
+    int iResult;
+    char recvbuf[DEFAULT_BUFLEN];
+    int recvbuflen = DEFAULT_BUFLEN;
+    // Receive until the peer closes the connection
+    do {
+        iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
+        if (iResult > 0)
+        {
+            OnMessageReceived(recvbuf);
+        }
+        else if (iResult == 0)
+            printf("Connection closed\n");
+        else
+            printf("recv failed with error: %d\n", WSAGetLastError());
+
+    } while (iResult > 0 || running);
+}
+
 int ClientMain()
 {
     std::thread inputThread(ClientInputThread);
@@ -171,8 +174,6 @@ int ClientMain()
         * ptr = NULL,
         hints;
 
-    char recvbuf[DEFAULT_BUFLEN];
-    int recvbuflen = DEFAULT_BUFLEN;
     int iResult;
 
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -224,20 +225,14 @@ int ClientMain()
         return 1;
     }
     
-    // Receive until the peer closes the connection
-    do {
+    std::thread receiveThread(ReceiveMessageThread);
 
-        iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-        if (iResult > 0)
-        {
-            OnMessageReceived(recvbuf);
-        }
-        else if (iResult == 0)
-            printf("Connection closed\n");
-        else
-            printf("recv failed with error: %d\n", WSAGetLastError());
+    while (running)
+    {
+        MultiThreadGame::Instance.ProcessMessages();
+    }
 
-    } while (iResult > 0 || running);
+    receiveThread.detach();
 
     // cleanup
     closesocket(ConnectSocket);

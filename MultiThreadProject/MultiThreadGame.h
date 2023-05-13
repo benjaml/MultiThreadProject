@@ -13,12 +13,12 @@ public:
     void RegisterClient(MultiThreadClient* pClient);
     void UnregisterClient(const Game::GUID& guid);
     MultiThreadClient* const GetRandomClient();
-    void PickItem(MultiThreadClient* pClient, std::string_view name, int amount);
-    int DropItem(MultiThreadClient* pClient, std::string_view name, int amount);
-    void GiveItem(MultiThreadClient* pFromClient, MultiThreadClient* pToClient, std::string_view name, int amount);
+    void PickItem(MultiThreadClient* pClient, std::string name, int amount);
+    int DropItem(MultiThreadClient* pClient, std::string name, int amount);
+    void GiveItem(MultiThreadClient* pFromClient, MultiThreadClient* pToClient, std::string name, int amount);
     void ApplyOnEachClient(std::function<void(MultiThreadClient*)> function);
     void QueueMessage(Message* order);
-    void ProcessOrders();
+    void ProcessMessages();
 
     MultiThreadGame();
     ~MultiThreadGame();

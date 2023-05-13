@@ -281,7 +281,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Client.h" />
-    <ClInclude Include="Defines.h" />
+    <ClInclude Include="Common.h" />
     <ClInclude Include="GUID.h" />
     <ClInclude Include="Message.h" />
     <ClInclude Include="MultiThreadClient.h" />

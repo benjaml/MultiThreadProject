@@ -46,7 +46,7 @@ MultiThreadClient* const MultiThreadGame::GetRandomClient()
     return result;
 }
 
-void MultiThreadGame::PickItem(MultiThreadClient* pClient, std::string_view name, int amount)
+void MultiThreadGame::PickItem(MultiThreadClient* pClient, std::string name, int amount)
 {
     if (pClient != NULL)
     {
@@ -58,7 +58,7 @@ void MultiThreadGame::PickItem(MultiThreadClient* pClient, std::string_view name
     }
 }
 
-int MultiThreadGame::DropItem(MultiThreadClient* pClient, std::string_view name, int amount)
+int MultiThreadGame::DropItem(MultiThreadClient* pClient, std::string name, int amount)
 {
     if (pClient != NULL)
     {
@@ -78,7 +78,7 @@ int MultiThreadGame::DropItem(MultiThreadClient* pClient, std::string_view name,
     }
 }
 
-void MultiThreadGame::GiveItem(MultiThreadClient* pFromClient, MultiThreadClient* pToClient, std::string_view name, int amount)
+void MultiThreadGame::GiveItem(MultiThreadClient* pFromClient, MultiThreadClient* pToClient, std::string name, int amount)
 {
     if (pFromClient == NULL)
     {
@@ -117,7 +117,7 @@ void MultiThreadGame::QueueMessage(Message* message)
     MessageStack.push(message);
 }
 
-void MultiThreadGame::ProcessOrders()
+void MultiThreadGame::ProcessMessages()
 {
     while (!MessageStack.empty())
     {
@@ -179,12 +179,22 @@ void MultiThreadGame::ProcessOrders()
             else
             {
                 std::cout << "Give Item" << std::endl;
-                Instance.GiveItem(fromClient, toClient, pMessage->ItemName, pMessage->Amount);            
+                Instance.GiveItem(fromClient, toClient, pMessage->ItemName, pMessage->Amount);
                 std::cout << "Client " << fromClient->ClientId.ToString() << " now have " << fromClient->GetItemCount(pMessage->ItemName) << " and Client " << toClient->ClientId.ToString() << " now have " << toClient->GetItemCount(pMessage->ItemName) << std::endl;
 
             }
         }
-            
+
+        break;
+
+        case Message::MessageType::RegisterPlayer:
+        {
+            RegisterPlayerMessage* pMessage = (RegisterPlayerMessage*)message;
+
+            MultiThreadClient* client = MultiThreadClient::CreateFromRegisterPlayerMessage(pMessage);
+            MultiThreadGame::Instance.RegisterClient(client);
+        }
+
         break;
 
         default:

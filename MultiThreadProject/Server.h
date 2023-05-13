@@ -2,11 +2,7 @@
 #include <thread>
 #include <iostream>
 #include <conio.h>
-#include "MultiThreadGame.h"
-#include "MultiThreadClient.h"
-#include "Defines.h"
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#include "Common.h"
 
 // Need to link with Ws2_32.lib
 #pragma comment (lib, "Ws2_32.lib")
@@ -20,6 +16,37 @@ SOCKET ListenSocket = INVALID_SOCKET;
 SOCKET ClientSocket = INVALID_SOCKET;
 
 std::unordered_map<Game::GUID, SOCKET> clients;
+
+void OnMessageReceived(char* buffer, SOCKET socket)
+{
+    Message* pBaseMessage = (Message*)buffer;
+    switch (pBaseMessage->Type)
+    {
+    case Message::MessageType::PickItem:
+    {
+        printf("Received PickItem message\n");
+        PickItemMessage* pMessage = (PickItemMessage*)buffer;
+        MultiThreadGame::Instance.QueueMessage(pMessage);
+        break;
+    }
+    case Message::MessageType::DropItem:
+    {
+        printf("Received DropItem message\n");
+        DropItemMessage* pMessage = (DropItemMessage*)buffer;
+        MultiThreadGame::Instance.QueueMessage(pMessage);
+        break;
+    }
+    case Message::MessageType::GiveItem:
+    {
+        printf("Received GiveItem message\n");
+        GiveItemMessage* pMessage = (GiveItemMessage*)buffer;
+        MultiThreadGame::Instance.QueueMessage(pMessage);
+        break;
+    }
+    default:
+        break;
+    }
+}
 
 void ServerProcessInput(char input)
 {
@@ -63,13 +90,59 @@ void RegisterClientThread()
         else
         {
             MultiThreadClient* client = new MultiThreadClient();
-            MultiThreadGame::Instance.RegisterClient(client);
             clients[client->ClientId] = Socket;
+            MultiThreadGame::Instance.RegisterClient(client);
+            MultiThreadGame::Instance.ApplyOnEachClient([Socket](MultiThreadClient* client) 
+                {
+                    RegisterPlayerMessage message;
+                    message.ClientGUID = client->ClientId;
+                    client->FillRegisterPlayerMessageContent(&message);
+                    SendNetworkMessage(&message, Socket);
+                });
         }
     }
 
     // No longer need server socket
     closesocket(ListenSocket);
+}
+
+void ReceiveMessageThread()
+{
+    char recvbuf[DEFAULT_BUFLEN];
+    int recvbuflen = DEFAULT_BUFLEN;
+
+    int index = 0;
+    size_t count;
+    SOCKET socket;
+    auto it = clients.begin();
+    int iResult;
+    while (running)
+    {
+        count = clients.size();
+        for (it = clients.begin(); it != clients.end(); ++it)
+        {
+            socket = (*it).second;
+            iResult = recv(socket, recvbuf, recvbuflen, 0);
+            if (iResult > 0)
+            {
+                printf("Bytes received: %d from %s\n", iResult, ((*it).first).ToString().c_str());
+                OnMessageReceived(recvbuf, socket);
+            }
+            else if (iResult == 0 || (iResult == -1 && WSAGetLastError() == 10054)) // 10054 is a connection break from client
+            {
+                printf("Connection closing...\n");
+                closesocket(socket);
+                // unregister client
+                MultiThreadGame::Instance.UnregisterClient((*it).first);
+                clients.erase((*it).first);
+                break;
+            }
+            else
+            {
+                printf("recv failed with error: %d\n", WSAGetLastError());
+            }
+        }
+    }
 }
 
 int ServerMain()
@@ -81,10 +154,6 @@ int ServerMain()
 
     struct addrinfo* result = NULL;
     struct addrinfo hints; 
-    
-    int iSendResult;
-    char recvbuf[DEFAULT_BUFLEN];
-    int recvbuflen = DEFAULT_BUFLEN;
 
     // Initialize Winsock
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -144,56 +213,20 @@ int ServerMain()
         std::this_thread::sleep_for(20ms);
     }
 
+    std::thread receiveMessageThread(ReceiveMessageThread);
+
     // Receive until the peer shuts down the connection
-    int index = 0;
-    size_t count;
-    SOCKET socket; 
-    auto it = clients.begin();
     while (running)
     {
-        count = clients.size();
-        for (it = clients.begin(); it != clients.end(); ++it)
-        {
-            socket = (*it).second;
-            iResult = recv(socket, recvbuf, recvbuflen, 0);
-            if (iResult > 0)
-            {
-                printf("Bytes received: %d from %s\n", iResult, ((*it).first).ToString().c_str());
-
-                // Echo the buffer back to the sender
-                iSendResult = send(socket, recvbuf, iResult, 0);
-                if (iSendResult == SOCKET_ERROR) {
-                    printf("send failed with error: %d\n", WSAGetLastError());
-                    closesocket(socket);
-                    WSACleanup();
-                    return 1;
-                }
-                printf("Bytes sent: %d\n", iSendResult);
-            }
-            else if (iResult == 0 || (iResult == -1 && WSAGetLastError() == 10054)) // 10054 is a connection break from client
-            {
-                printf("Connection closing...\n");
-                closesocket(socket);
-                // unregister client
-                MultiThreadGame::Instance.UnregisterClient((*it).first);
-                clients.erase((*it).first);
-                break;
-            }
-            else
-            {
-                printf("recv failed with error: %d\n", WSAGetLastError());
-                closesocket(socket);
-                WSACleanup();
-                return 1;
-            }
-        }
+        MultiThreadGame::Instance.ProcessMessages();
     }
 
-    receiveClientThread.detach();
+    receiveMessageThread.detach();
 
     if (clients.size() > 0)
     {
-        for (it = clients.begin(); it != clients.end(); ++it)
+        SOCKET socket;
+        for (auto it = clients.begin(); it != clients.end(); ++it)
         {
             socket = (*it).second;
             // shutdown the connection since we're done
@@ -209,6 +242,8 @@ int ServerMain()
             closesocket(socket);
         }
     }
+
+    receiveClientThread.detach();
 
     WSACleanup();
     inputThread.join();

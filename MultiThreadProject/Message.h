@@ -5,7 +5,6 @@ struct Message
 {
 	enum class MessageType
 	{
-		RegisterPlayerRequest, // from client -> server
 		RegisterPlayer, // from server -> client
 		PickItem,
 		DropItem,
@@ -15,7 +14,7 @@ struct Message
 	MessageType Type;
 	Game::GUID ClientGUID;
 
-	virtual const int size()
+	virtual const size_t size()
 	{
 		return sizeof(Message);
 	}
@@ -23,10 +22,10 @@ struct Message
 
 struct PickItemMessage : Message
 {
-	std::string_view ItemName;
+	std::string ItemName;
 	int Amount;
 
-	PickItemMessage(Game::GUID clientGUID, std::string_view name, int amount)
+	PickItemMessage(Game::GUID clientGUID, std::string name, int amount)
 	{
 		Type = Message::MessageType::PickItem;
 		ClientGUID = clientGUID;
@@ -34,7 +33,7 @@ struct PickItemMessage : Message
 		Amount = amount;
 	}
 
-	virtual const int size() override
+	virtual const size_t size() override
 	{
 		return sizeof(PickItemMessage);
 	}
@@ -42,10 +41,10 @@ struct PickItemMessage : Message
 
 struct DropItemMessage : Message
 {
-	std::string_view ItemName;
+	std::string ItemName;
 	int Amount;
 
-	DropItemMessage(Game::GUID clientGUID, std::string_view name, int amount)
+	DropItemMessage(Game::GUID clientGUID, std::string name, int amount)
 	{
 		Type = Message::MessageType::DropItem;
 		ClientGUID = clientGUID;
@@ -53,7 +52,7 @@ struct DropItemMessage : Message
 		Amount = amount;
 	}
 
-	virtual const int size() override
+	virtual const size_t size() override
 	{
 		return sizeof(DropItemMessage);
 	}
@@ -62,10 +61,10 @@ struct DropItemMessage : Message
 struct GiveItemMessage : Message
 {
 	Game::GUID OtherClientGUID;
-	std::string_view ItemName;
+	std::string ItemName;
 	int Amount;
 
-	GiveItemMessage(Game::GUID fromClientGUID, Game::GUID toClientGUID, std::string_view name, int amount)
+	GiveItemMessage(Game::GUID fromClientGUID, Game::GUID toClientGUID, std::string name, int amount)
 	{
 		Type = Message::MessageType::GiveItem;
 		ClientGUID = fromClientGUID;
@@ -74,38 +73,25 @@ struct GiveItemMessage : Message
 		Amount = amount;
 	}
 
-	virtual const int size() override
+	virtual const size_t size() override
 	{
 		return sizeof(GiveItemMessage);
-	}
-};
-
-struct RegisterPlayerRequestMessage : Message
-{
-	RegisterPlayerRequestMessage()
-	{
-		Type = Message::MessageType::RegisterPlayerRequest;
-	}
-
-	virtual const int size() override
-	{
-		return sizeof(RegisterPlayerRequestMessage);
 	}
 };
 
 struct RegisterPlayerMessage : Message
 {
 	char* inventoryBuffer;
-	int inventoryBufferSize;
+	size_t inventoryBufferSize;
 
 	RegisterPlayerMessage()
 	{
-		Type = Message::MessageType::RegisterPlayerRequest;
+		Type = Message::MessageType::RegisterPlayer;
 		inventoryBuffer = NULL;
 		inventoryBufferSize = 0;
 	}
 
-	virtual const int size() override
+	virtual const size_t size() override
 	{
 		return sizeof(Message) + inventoryBufferSize + sizeof(inventoryBufferSize);
 	}
