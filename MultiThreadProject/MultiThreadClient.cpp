@@ -25,7 +25,7 @@ int MultiThreadClient::GetItemCount(std::string_view name)
 
 MultiThreadClient::MultiThreadClient()
 {
-    ClientId = GUID::GetNextGUID();
+    ClientId = Game::GUID::GetNextGUID();
 }
 
 MultiThreadClient::~MultiThreadClient()

@@ -283,9 +283,9 @@
     <ClInclude Include="Client.h" />
     <ClInclude Include="Defines.h" />
     <ClInclude Include="GUID.h" />
+    <ClInclude Include="Message.h" />
     <ClInclude Include="MultiThreadClient.h" />
     <ClInclude Include="MultiThreadGame.h" />
-    <ClInclude Include="Order.h" />
     <ClInclude Include="Server.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

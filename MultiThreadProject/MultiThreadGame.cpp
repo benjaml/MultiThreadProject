@@ -18,6 +18,14 @@ void MultiThreadGame::RegisterClient(MultiThreadClient* pClient)
     }
 }
 
+void MultiThreadGame::UnregisterClient(const Game::GUID& guid)
+{
+    lock.lock();
+    delete clients[guid];
+    clients.erase(guid);
+    lock.unlock();
+}
+
 MultiThreadClient* const MultiThreadGame::GetRandomClient()
 {
     lock.lock();
@@ -104,24 +112,24 @@ void MultiThreadGame::ApplyOnEachClient(std::function<void(MultiThreadClient*)> 
     lock.unlock();
 }
 
-void MultiThreadGame::QueueOrder(Order* order)
+void MultiThreadGame::QueueMessage(Message* message)
 {
-    OrderStack.push(order);
+    MessageStack.push(message);
 }
 
 void MultiThreadGame::ProcessOrders()
 {
-    while (!OrderStack.empty())
+    while (!MessageStack.empty())
     {
-        Order* order = OrderStack.front();
-        OrderStack.pop();
-        switch (order->Type)
+        Message* message = MessageStack.front();
+        MessageStack.pop();
+        switch (message->Type)
         {
-        case Order::OrderType::PickItem:
+        case Message::MessageType::PickItem:
         {
-            PickItemOrder* pOrder = (PickItemOrder*)order;
+            PickItemMessage* pMessage = (PickItemMessage*)message;
 
-            MultiThreadClient* client = clients[pOrder->ClientGUID];
+            MultiThreadClient* client = clients[pMessage->ClientGUID];
             if (client == NULL)
             {
                 std::cerr << "PickItem : Invalid client GUID" << std::endl;
@@ -130,18 +138,18 @@ void MultiThreadGame::ProcessOrders()
             else
             {
                 std::cout << "Pick Item" << std::endl;
-                Instance.PickItem(client, pOrder->ItemName, pOrder->Amount);
-                std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(pOrder->ItemName) << std::endl;
+                Instance.PickItem(client, pMessage->ItemName, pMessage->Amount);
+                std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(pMessage->ItemName) << std::endl;
             }
         }
 
         break; 
 
-        case Order::OrderType::DropItem:
+        case Message::MessageType::DropItem:
         {
-            DropItemOrder* pOrder = (DropItemOrder*)order;
+            DropItemMessage* pMessage = (DropItemMessage*)message;
 
-            MultiThreadClient* client = clients[pOrder->ClientGUID];
+            MultiThreadClient* client = clients[pMessage->ClientGUID];
             if (client == NULL)
             {
                 std::cerr << "DropItem : Invalid client GUID" << std::endl;
@@ -150,19 +158,19 @@ void MultiThreadGame::ProcessOrders()
             else
             {
                 std::cout << "Drop Item" << std::endl;
-                Instance.DropItem(client, pOrder->ItemName, pOrder->Amount);
-                std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(pOrder->ItemName) << std::endl;
+                Instance.DropItem(client, pMessage->ItemName, pMessage->Amount);
+                std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(pMessage->ItemName) << std::endl;
             }
         }
 
         break;
 
-        case Order::OrderType::GiveItem:
+        case Message::MessageType::GiveItem:
         {
-            GiveItemOrder* pOrder = (GiveItemOrder*)order;
+            GiveItemMessage* pMessage = (GiveItemMessage*)message;
 
-            MultiThreadClient* fromClient = clients[pOrder->ClientGUID];
-            MultiThreadClient* toClient = clients[pOrder->ClientGUID];
+            MultiThreadClient* fromClient = clients[pMessage->ClientGUID];
+            MultiThreadClient* toClient = clients[pMessage->ClientGUID];
             if (fromClient == NULL || toClient == NULL)
             {
                 std::cerr << "DropItem : Invalid client GUID" << std::endl;
@@ -171,8 +179,8 @@ void MultiThreadGame::ProcessOrders()
             else
             {
                 std::cout << "Give Item" << std::endl;
-                Instance.GiveItem(fromClient, toClient, pOrder->ItemName, pOrder->Amount);            
-                std::cout << "Client " << fromClient->ClientId.ToString() << " now have " << fromClient->GetItemCount(pOrder->ItemName) << " and Client " << toClient->ClientId.ToString() << " now have " << toClient->GetItemCount(pOrder->ItemName) << std::endl;
+                Instance.GiveItem(fromClient, toClient, pMessage->ItemName, pMessage->Amount);            
+                std::cout << "Client " << fromClient->ClientId.ToString() << " now have " << fromClient->GetItemCount(pMessage->ItemName) << " and Client " << toClient->ClientId.ToString() << " now have " << toClient->GetItemCount(pMessage->ItemName) << std::endl;
 
             }
         }
@@ -184,7 +192,7 @@ void MultiThreadGame::ProcessOrders()
             break;
         }
 
-        delete order;
+        delete message;
     }
 }
 

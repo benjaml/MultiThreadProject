@@ -7,7 +7,7 @@
 class MultiThreadClient
 {
 public:
-    GUID ClientId;
+    Game::GUID ClientId;
     void PickItem(std::string_view name, int amount);
     void DropItem(std::string_view name, int amount);
     int GetItemCount(std::string_view name);

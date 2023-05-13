@@ -16,6 +16,11 @@
 
 using namespace std::literals::chrono_literals;
 
+SOCKET ListenSocket = INVALID_SOCKET;
+SOCKET ClientSocket = INVALID_SOCKET;
+
+std::unordered_map<Game::GUID, SOCKET> clients;
+
 void ServerProcessInput(char input)
 {
     switch (input)
@@ -26,64 +31,6 @@ void ServerProcessInput(char input)
         running = false;
         break;
     }
-    case '+':
-    {
-        std::cout << "New Client" << std::endl;
-        MultiThreadClient* client = new MultiThreadClient();
-        MultiThreadGame::Instance.RegisterClient(client);
-        break;
-    }
-    case '1':
-    {
-        try
-        {
-            MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
-            PickItemOrder* order = new PickItemOrder(client->ClientId, MONEY, 20);
-            MultiThreadGame::Instance.QueueOrder(order);
-        }
-        catch (std::exception e)
-        {
-            std::cerr << "Cannot do pick item because of exception : " << e.what() << std::endl;
-        }
-
-        break;
-    }
-    case '2':
-    {
-        try
-        {
-            MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
-            DropItemOrder* order = new DropItemOrder(client->ClientId, MONEY, 20);
-            MultiThreadGame::Instance.QueueOrder(order);
-        }
-        catch (std::exception e)
-        {
-            std::cerr << "Cannot do drop item because of exception : " << e.what() << std::endl;
-        }
-
-        break;
-    }
-    case '3':
-    {
-        try
-        {
-            MultiThreadClient* fromClient = MultiThreadGame::Instance.GetRandomClient();
-            MultiThreadClient* toClient = MultiThreadGame::Instance.GetRandomClient();
-            while (fromClient == toClient)
-            {
-                toClient = MultiThreadGame::Instance.GetRandomClient();
-            }
-
-            GiveItemOrder* order = new GiveItemOrder(fromClient->ClientId, toClient->ClientId, MONEY, 20);
-            MultiThreadGame::Instance.QueueOrder(order);
-        }
-        catch (std::exception e)
-        {
-            std::cerr << "Cannot do give item because of exception : " << e.what() << std::endl;
-        }
-        break;
-    }
-
     default:
         std::cout << input << std::endl;
     }
@@ -102,14 +49,35 @@ void ServerInputThread()
     }
 }
 
+void RegisterClientThread()
+{
+    while (running)
+    {
+        SOCKET Socket = INVALID_SOCKET;
+        // Accept a client socket (This waits for a connection to come)
+        Socket = accept(ListenSocket, NULL, NULL);
+        if (Socket == INVALID_SOCKET)
+        {
+            printf("accept failed with error: %d\n", WSAGetLastError());
+        }
+        else
+        {
+            MultiThreadClient* client = new MultiThreadClient();
+            MultiThreadGame::Instance.RegisterClient(client);
+            clients[client->ClientId] = Socket;
+        }
+    }
+
+    // No longer need server socket
+    closesocket(ListenSocket);
+}
+
 int ServerMain()
 {
+    std::thread inputThread(ServerInputThread);
     // Window Socket data
     WSADATA wsaData;
     int iResult;
-
-    SOCKET ListenSocket = INVALID_SOCKET;
-    SOCKET ClientSocket = INVALID_SOCKET;
 
     struct addrinfo* result = NULL;
     struct addrinfo hints; 
@@ -168,57 +136,81 @@ int ServerMain()
         return 1;
     }
 
-    // Accept a client socket (This waits for a connection to come)
-    ClientSocket = accept(ListenSocket, NULL, NULL);
-    if (ClientSocket == INVALID_SOCKET) {
-        printf("accept failed with error: %d\n", WSAGetLastError());
-        closesocket(ListenSocket);
-        WSACleanup();
-        return 1;
+    std::thread receiveClientThread(RegisterClientThread);
+
+    // wait for a client to connect
+    while (running && clients.size() == 0)
+    {
+        std::this_thread::sleep_for(20ms);
     }
-    
-    // No longer need server socket
-    closesocket(ListenSocket);
+
     // Receive until the peer shuts down the connection
-    do {
+    int index = 0;
+    size_t count;
+    SOCKET socket; 
+    auto it = clients.begin();
+    while (running)
+    {
+        count = clients.size();
+        for (it = clients.begin(); it != clients.end(); ++it)
+        {
+            socket = (*it).second;
+            iResult = recv(socket, recvbuf, recvbuflen, 0);
+            if (iResult > 0)
+            {
+                printf("Bytes received: %d from %s\n", iResult, ((*it).first).ToString().c_str());
 
-        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
-        if (iResult > 0) {
-            printf("Bytes received: %d\n", iResult);
-
-            // Echo the buffer back to the sender
-            iSendResult = send(ClientSocket, recvbuf, iResult, 0);
-            if (iSendResult == SOCKET_ERROR) {
-                printf("send failed with error: %d\n", WSAGetLastError());
-                closesocket(ClientSocket);
+                // Echo the buffer back to the sender
+                iSendResult = send(socket, recvbuf, iResult, 0);
+                if (iSendResult == SOCKET_ERROR) {
+                    printf("send failed with error: %d\n", WSAGetLastError());
+                    closesocket(socket);
+                    WSACleanup();
+                    return 1;
+                }
+                printf("Bytes sent: %d\n", iSendResult);
+            }
+            else if (iResult == 0 || (iResult == -1 && WSAGetLastError() == 10054)) // 10054 is a connection break from client
+            {
+                printf("Connection closing...\n");
+                closesocket(socket);
+                // unregister client
+                MultiThreadGame::Instance.UnregisterClient((*it).first);
+                clients.erase((*it).first);
+                break;
+            }
+            else
+            {
+                printf("recv failed with error: %d\n", WSAGetLastError());
+                closesocket(socket);
                 WSACleanup();
                 return 1;
             }
-            printf("Bytes sent: %d\n", iSendResult);
         }
-        else if (iResult == 0)
-            printf("Connection closing...\n");
-        else {
-            printf("recv failed with error: %d\n", WSAGetLastError());
-            closesocket(ClientSocket);
-            WSACleanup();
-            return 1;
-        }
-
-    } while (iResult > 0);
-
-    // shutdown the connection since we're done
-    iResult = shutdown(ClientSocket, SD_SEND);
-    if (iResult == SOCKET_ERROR) {
-        printf("shutdown failed with error: %d\n", WSAGetLastError());
-        closesocket(ClientSocket);
-        WSACleanup();
-        return 1;
     }
 
-    // cleanup
-    closesocket(ClientSocket);
+    receiveClientThread.detach();
+
+    if (clients.size() > 0)
+    {
+        for (it = clients.begin(); it != clients.end(); ++it)
+        {
+            socket = (*it).second;
+            // shutdown the connection since we're done
+            iResult = shutdown(socket, SD_SEND);
+            if (iResult == SOCKET_ERROR) {
+                printf("shutdown failed with error: %d\n", WSAGetLastError());
+                closesocket(socket);
+                WSACleanup();
+                return 1;
+            }
+
+            // cleanup
+            closesocket(socket);
+        }
+    }
 
     WSACleanup();
+    inputThread.join();
     return 0;
 }

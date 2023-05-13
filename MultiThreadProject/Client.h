@@ -19,6 +19,61 @@ using namespace std::literals::chrono_literals;
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
 
+SOCKET ConnectSocket = INVALID_SOCKET;
+
+void SendMessage(Message* order)
+{
+    const int length = order->size();
+    char* sendbuf = new char[length];
+    memcpy(sendbuf, order, length);
+    int iResult = send(ConnectSocket, sendbuf, length, 0);
+    if (iResult == SOCKET_ERROR) {
+        printf("send failed with error: %d\n", WSAGetLastError());
+        closesocket(ConnectSocket);
+        WSACleanup();
+    }
+}
+
+void OnMessageReceived(char* buffer)
+{
+    Message* pBaseMessage = (Message*)buffer;
+    switch (pBaseMessage->Type)
+    {
+    case Message::MessageType::RegisterPlayerRequest:
+    {
+        RegisterPlayerRequestMessage* pMessage = new RegisterPlayerRequestMessage(*(RegisterPlayerRequestMessage*)pBaseMessage);
+        MultiThreadGame::Instance.QueueMessage(pMessage);
+        break;
+    }
+    case Message::MessageType::RegisterPlayer:
+    {
+        RegisterPlayerMessage* pMessage = new RegisterPlayerMessage(*(RegisterPlayerMessage*)pBaseMessage);
+        MultiThreadGame::Instance.QueueMessage(pMessage);
+        break;
+    }
+    case Message::MessageType::PickItem:
+    {
+        PickItemMessage* pMessage = new PickItemMessage(*(PickItemMessage*)pBaseMessage);
+        MultiThreadGame::Instance.QueueMessage(pMessage);
+        break;
+    }
+    case Message::MessageType::DropItem:
+    {
+        DropItemMessage* pMessage = new DropItemMessage(*(DropItemMessage*)pBaseMessage);
+        MultiThreadGame::Instance.QueueMessage(pMessage);
+        break; 
+    }
+    case Message::MessageType::GiveItem:
+    {
+        GiveItemMessage* pMessage = new GiveItemMessage(*(GiveItemMessage*)pBaseMessage);
+        MultiThreadGame::Instance.QueueMessage(pMessage);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 void ClientProcessInput(char input)
 {
     switch (input)
@@ -27,13 +82,15 @@ void ClientProcessInput(char input)
     {
         std::cout << "Shutting down" << std::endl;
         running = false;
-        break;
-    }
-    case '+':
-    {
-        std::cout << "New Client" << std::endl;
-        MultiThreadClient* client = new MultiThreadClient();
-        MultiThreadGame::Instance.RegisterClient(client);
+
+        // shutdown the connection since no more data will be sent
+        int iResult = shutdown(ConnectSocket, SD_SEND);
+        if (iResult == SOCKET_ERROR) {
+            printf("shutdown failed with error: %d\n", WSAGetLastError());
+            closesocket(ConnectSocket);
+            WSACleanup();
+        }
+
         break;
     }
     case '1':
@@ -41,8 +98,8 @@ void ClientProcessInput(char input)
         try
         {
             MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
-            PickItemOrder* order = new PickItemOrder(client->ClientId, MONEY, 20);
-            MultiThreadGame::Instance.QueueOrder(order);
+            PickItemMessage* message = new PickItemMessage(client->ClientId, MONEY, 20);
+            SendMessage(message);
         }
         catch (std::exception e)
         {
@@ -56,8 +113,8 @@ void ClientProcessInput(char input)
         try
         {
             MultiThreadClient* client = MultiThreadGame::Instance.GetRandomClient();
-            DropItemOrder* order = new DropItemOrder(client->ClientId, MONEY, 20);
-            MultiThreadGame::Instance.QueueOrder(order);
+            DropItemMessage* message = new DropItemMessage(client->ClientId, MONEY, 20);
+            SendMessage(message);
         }
         catch (std::exception e)
         {
@@ -77,8 +134,8 @@ void ClientProcessInput(char input)
                 toClient = MultiThreadGame::Instance.GetRandomClient();
             }
 
-            GiveItemOrder* order = new GiveItemOrder(fromClient->ClientId, toClient->ClientId, MONEY, 20);
-            MultiThreadGame::Instance.QueueOrder(order);
+            GiveItemMessage* message = new GiveItemMessage(fromClient->ClientId, toClient->ClientId, MONEY, 20);
+            SendMessage(message);
         }
         catch (std::exception e)
         {
@@ -110,11 +167,9 @@ int ClientMain()
     std::thread inputThread(ClientInputThread);
 
     WSADATA wsaData;
-    SOCKET ConnectSocket = INVALID_SOCKET;
     struct addrinfo* result = NULL,
         * ptr = NULL,
         hints;
-    const char* sendbuf = "this is a test";
 
     char recvbuf[DEFAULT_BUFLEN];
     int recvbuflen = DEFAULT_BUFLEN;
@@ -169,38 +224,20 @@ int ClientMain()
         return 1;
     }
     
-    // Send an initial buffer
-    iResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
-    if (iResult == SOCKET_ERROR) {
-        printf("send failed with error: %d\n", WSAGetLastError());
-        closesocket(ConnectSocket);
-        WSACleanup();
-        return 1;
-    }
-
-    printf("Bytes Sent: %ld\n", iResult);
-
-    // shutdown the connection since no more data will be sent
-    iResult = shutdown(ConnectSocket, SD_SEND);
-    if (iResult == SOCKET_ERROR) {
-        printf("shutdown failed with error: %d\n", WSAGetLastError());
-        closesocket(ConnectSocket);
-        WSACleanup();
-        return 1;
-    }
-    
     // Receive until the peer closes the connection
     do {
 
         iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
         if (iResult > 0)
-            printf("Bytes received: %d\n", iResult);
+        {
+            OnMessageReceived(recvbuf);
+        }
         else if (iResult == 0)
             printf("Connection closed\n");
         else
             printf("recv failed with error: %d\n", WSAGetLastError());
 
-    } while (iResult > 0);
+    } while (iResult > 0 || running);
 
     // cleanup
     closesocket(ConnectSocket);
