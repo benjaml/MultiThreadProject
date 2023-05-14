@@ -48,10 +48,18 @@ void OnMessageReceived(char* buffer, SOCKET socket)
         printf("Received DropItem message\n");
         DropItemMessage* pMessage = (DropItemMessage*)buffer;
         // Validate first
-        MultiThreadGame::Instance.GetClient(pMessage->ClientGUID);
-        // Apply
-        BroadcastMessage(pMessage);
-        MultiThreadGame::Instance.QueueMessage(pMessage);
+        MultiThreadClient* client = MultiThreadGame::Instance.GetClient(pMessage->ClientGUID);
+        if (client->GetItemCount(pMessage->ItemName) < pMessage->Amount)
+        {
+            printf("Client %s cannot drop %d %s as only got %d", client->ClientId.ToString().c_str(), pMessage->Amount, pMessage->ItemName.c_str(), client->GetItemCount(pMessage->ItemName));
+            // [TODO] Send a server error / message denied with reason ?
+        }
+        else
+        {
+            // Apply
+            BroadcastMessage(pMessage);
+            MultiThreadGame::Instance.QueueMessage(pMessage);
+        }
         break;
     }
     case Message::MessageType::GiveItem:
@@ -59,9 +67,20 @@ void OnMessageReceived(char* buffer, SOCKET socket)
         printf("Received GiveItem message\n");
         GiveItemMessage* pMessage = (GiveItemMessage*)buffer;
         // Validate first
-        // Apply
-        BroadcastMessage(pMessage);
-        MultiThreadGame::Instance.QueueMessage(pMessage);
+        MultiThreadClient* fromClient = MultiThreadGame::Instance.GetClient(pMessage->ClientGUID);
+        MultiThreadClient* toClient = MultiThreadGame::Instance.GetClient(pMessage->OtherClientGUID);
+
+        if (fromClient->GetItemCount(pMessage->ItemName) < pMessage->Amount)
+        {
+            printf("Client %s cannot give %d %s as only got %d", fromClient->ClientId.ToString().c_str(), pMessage->Amount, pMessage->ItemName.c_str(), fromClient->GetItemCount(pMessage->ItemName));
+            // [TODO] Send a server error / message denied with reason ?
+        }
+        else
+        {
+            // Apply
+            BroadcastMessage(pMessage);
+            MultiThreadGame::Instance.QueueMessage(pMessage);
+        }
         break;
     }
     default:
