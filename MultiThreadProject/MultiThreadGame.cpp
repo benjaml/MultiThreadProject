@@ -47,6 +47,11 @@ MultiThreadClient* const MultiThreadGame::GetRandomClient()
     return result;
 }
 
+MultiThreadClient* const MultiThreadGame::GetClient(const Game::GUID& guid)
+{
+    return clients[guid];
+}
+
 void MultiThreadGame::PickItem(MultiThreadClient* pClient, std::string name, int amount)
 {
     if (pClient != NULL)

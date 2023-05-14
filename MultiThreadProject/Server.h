@@ -16,8 +16,10 @@ using namespace std::literals::chrono_literals;
 
 SOCKET ListenSocket = INVALID_SOCKET;
 SOCKET ClientSocket = INVALID_SOCKET;
+DWORD recvTimeout = 20;
 
 std::unordered_map<Game::GUID, SOCKET> clients;
+std::mutex clientsLock;
 
 void BroadcastMessage(Message* message)
 {
@@ -46,6 +48,7 @@ void OnMessageReceived(char* buffer, SOCKET socket)
         printf("Received DropItem message\n");
         DropItemMessage* pMessage = (DropItemMessage*)buffer;
         // Validate first
+        MultiThreadGame::Instance.GetClient(pMessage->ClientGUID);
         // Apply
         BroadcastMessage(pMessage);
         MultiThreadGame::Instance.QueueMessage(pMessage);
@@ -108,7 +111,10 @@ void RegisterClientThread()
         else
         {
             MultiThreadClient* client = new MultiThreadClient();
+            clientsLock.lock();
+            setsockopt(Socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&recvTimeout, sizeof(recvTimeout));
             clients[client->ClientId] = Socket;
+            clientsLock.unlock();
             MultiThreadGame::Instance.ApplyOnEachClient([Socket](MultiThreadClient* client) 
                 {
                     RegisterPlayerMessage message;
@@ -137,9 +143,13 @@ void ReceiveMessageThread()
     SOCKET socket;
     auto it = clients.begin();
     int iResult;
+
     while (running)
     {
+        clientsLock.lock();
         count = clients.size();
+
+        // There is an issue here when I have more than one client, it will wait to receive a message from both socket. I might consider using only one socket and add an id to identify client to have multiple clients on same socket ? (maybe a bad idea)
         for (it = clients.begin(); it != clients.end(); ++it)
         {
             socket = (*it).second;
@@ -155,14 +165,21 @@ void ReceiveMessageThread()
                 closesocket(socket);
                 // unregister client
                 MultiThreadGame::Instance.UnregisterClient((*it).first);
+                // [TODO] broadcast unregister client message
                 clients.erase((*it).first);
                 break;
             }
             else
             {
-                printf("recv failed with error: %d\n", WSAGetLastError());
+                if (WSAGetLastError() != 10060)
+                {
+                    printf("recv failed with error: %d\n", WSAGetLastError());
+                }
             }
         }
+
+        clientsLock.unlock();
+        std::this_thread::sleep_for(20ms);
     }
 }
 
@@ -250,6 +267,7 @@ int ServerMain()
 
     receiveMessageThread.detach();
 
+    clientsLock.lock();
     if (clients.size() > 0)
     {
         SOCKET socket;
@@ -269,6 +287,7 @@ int ServerMain()
             closesocket(socket);
         }
     }
+    clientsLock.unlock();
 
     receiveClientThread.detach();
 

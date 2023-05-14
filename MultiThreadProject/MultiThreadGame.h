@@ -13,6 +13,7 @@ public:
     void RegisterClient(MultiThreadClient* pClient);
     void UnregisterClient(const Game::GUID& guid);
     MultiThreadClient* const GetRandomClient();
+    MultiThreadClient* const GetClient(const Game::GUID& guid);
     void PickItem(MultiThreadClient* pClient, std::string name, int amount);
     int DropItem(MultiThreadClient* pClient, std::string name, int amount);
     void GiveItem(MultiThreadClient* pFromClient, MultiThreadClient* pToClient, std::string name, int amount);
