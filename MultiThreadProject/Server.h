@@ -72,7 +72,7 @@ void ServerProcessInput(char input)
     {
     case 'x':
     {
-        std::cout << "Shutting down" << std::endl;
+        printf("Shutting down\n");
         running = false;
         break;
     }
@@ -173,7 +173,7 @@ int ServerMain()
     // setup random
     time_t timer;
     time(&timer);
-    srand(timer);
+    srand((unsigned int)timer);
 
     // Window Socket data
     WSADATA wsaData;

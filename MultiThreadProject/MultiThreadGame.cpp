@@ -9,13 +9,13 @@ void MultiThreadGame::RegisterClient(MultiThreadClient* pClient)
     if (pClient != NULL)
     {
         lock.lock();
-        std::cout << "Registered client : " << pClient->ClientId.ToString() << std::endl;
+        printf("Registered client : %s\n", pClient->ClientId.ToString().c_str());
         clients[pClient->ClientId] = pClient;
         lock.unlock();
     }
     else
     {
-        std::cerr << "Trying to register a null client" << std::endl;
+        printf("Trying to register a null client\n");
     }
 }
 
@@ -55,7 +55,7 @@ void MultiThreadGame::PickItem(MultiThreadClient* pClient, std::string name, int
     }
     else
     {
-        std::cerr << "Trying to pick an item on a null client" << std::endl;
+        printf("Trying to pick an item on a null client\n");
     }
 }
 
@@ -74,7 +74,7 @@ int MultiThreadGame::DropItem(MultiThreadClient* pClient, std::string name, int 
     }
     else
     {
-        std::cerr << "Trying to drop an item on a null client" << std::endl;
+        printf("Trying to drop an item on a null client\n");
         return 0;
     }
 }
@@ -83,20 +83,20 @@ void MultiThreadGame::GiveItem(MultiThreadClient* pFromClient, MultiThreadClient
 {
     if (pFromClient == NULL)
     {
-        std::cerr << "Trying to give an item from a null client" << std::endl;
+        printf("Trying to give an item from a null client\n");
         return;
     }
 
     if (pToClient == NULL)
     {
-        std::cerr << "Trying to give an item to a null client" << std::endl;
+        printf("Trying to give an item to a null client\n");
         return;
     }
 
     int removed = Instance.DropItem(pFromClient, name, amount);
     if (removed < amount)
     {
-        std::cout << "As giving client only have " << removed << " " << name << ", only giving " << removed << std::endl;
+        printf("As giving client only have %d, only giving %d\n", removed, removed);
     }
 
     Instance.PickItem(pToClient, name, removed);
@@ -132,14 +132,14 @@ void MultiThreadGame::ProcessMessages()
             MultiThreadClient* client = clients[pMessage->ClientGUID];
             if (client == NULL)
             {
-                std::cerr << "PickItem : Invalid client GUID" << std::endl;
+                printf("PickItem : Invalid client GUID\n");
                 continue;
             }
             else
             {
-                std::cout << "Pick Item" << std::endl;
+                printf("Pick Item\n");
                 Instance.PickItem(client, pMessage->ItemName, pMessage->Amount);
-                std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(pMessage->ItemName) << std::endl;
+                printf("Client %s now have %d %s\n", client->ClientId.ToString().c_str(), client->GetItemCount(pMessage->ItemName), pMessage->ItemName.c_str());
             }
         }
 
@@ -152,14 +152,14 @@ void MultiThreadGame::ProcessMessages()
             MultiThreadClient* client = clients[pMessage->ClientGUID];
             if (client == NULL)
             {
-                std::cerr << "DropItem : Invalid client GUID" << std::endl;
+                printf("DropItem : Invalid client GUID\n");
                 continue;
             }
             else
             {
-                std::cout << "Drop Item" << std::endl;
+                printf("Drop Item\n");
                 Instance.DropItem(client, pMessage->ItemName, pMessage->Amount);
-                std::cout << "Client " << client->ClientId.ToString() << " now have " << client->GetItemCount(pMessage->ItemName) << std::endl;
+                printf("Client %s now have %d %s\n", client->ClientId.ToString().c_str(), client->GetItemCount(pMessage->ItemName), pMessage->ItemName.c_str());
             }
         }
 
@@ -173,15 +173,14 @@ void MultiThreadGame::ProcessMessages()
             MultiThreadClient* toClient = clients[pMessage->ClientGUID];
             if (fromClient == NULL || toClient == NULL)
             {
-                std::cerr << "DropItem : Invalid client GUID" << std::endl;
+                printf("DropItem : Invalid client GUID\n");
                 continue;
             }
             else
             {
-                std::cout << "Give Item" << std::endl;
+                printf("Give Item\n");
                 Instance.GiveItem(fromClient, toClient, pMessage->ItemName, pMessage->Amount);
-                std::cout << "Client " << fromClient->ClientId.ToString() << " now have " << fromClient->GetItemCount(pMessage->ItemName) << " and Client " << toClient->ClientId.ToString() << " now have " << toClient->GetItemCount(pMessage->ItemName) << std::endl;
-
+                printf("Client %s now have %d %s and Client %s now have %d %s\n", fromClient->ClientId.ToString().c_str(), fromClient->GetItemCount(pMessage->ItemName), pMessage->ItemName.c_str(), toClient->ClientId.ToString().c_str(), toClient->GetItemCount(pMessage->ItemName), pMessage->ItemName.c_str());
             }
         }
 
@@ -207,7 +206,7 @@ void MultiThreadGame::ProcessMessages()
         break;
 
         default:
-            std::cerr << "Order not supported" << std::endl;
+            printf("Order not supported\n");
             break;
         }
 

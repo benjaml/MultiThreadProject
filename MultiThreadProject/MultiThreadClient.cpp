@@ -73,6 +73,5 @@ MultiThreadClient::MultiThreadClient(Game::GUID guid)
 
 MultiThreadClient::~MultiThreadClient()
 {
-    std::cout << "Delete client : " << ClientId.ToString() << std::endl;
 }
 

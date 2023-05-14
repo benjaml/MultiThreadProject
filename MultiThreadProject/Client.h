@@ -62,7 +62,7 @@ void ClientProcessInput(char input)
     {
     case 'x':
     {
-        std::cout << "Shutting down" << std::endl;
+        printf("Shutting down\n");
         running = false;
 
         // shutdown the connection since no more data will be sent
@@ -87,7 +87,7 @@ void ClientProcessInput(char input)
         }
         catch (std::exception e)
         {
-            std::cerr << "Cannot do pick item because of exception : " << e.what() << std::endl;
+            printf("Cannot do give item because of exception : %s\n", e.what());
         }
 
         break;
@@ -103,7 +103,7 @@ void ClientProcessInput(char input)
         }
         catch (std::exception e)
         {
-            std::cerr << "Cannot do drop item because of exception : " << e.what() << std::endl;
+            printf("Cannot do give item because of exception : %s\n", e.what());
         }
 
         break;
@@ -125,13 +125,13 @@ void ClientProcessInput(char input)
         }
         catch (std::exception e)
         {
-            std::cerr << "Cannot do give item because of exception : " << e.what() << std::endl;
+            printf("Cannot do give item because of exception : %s\n", e.what());
         }
         break;
     }
 
     default:
-        std::cout << input << std::endl;
+        break;
     }
 }
 
@@ -177,7 +177,7 @@ int ClientMain()
     // setup random
     time_t timer;
     time(&timer);
-    srand(timer);
+    srand((unsigned int)timer);
 
     WSADATA wsaData;
     struct addrinfo* result = NULL,
