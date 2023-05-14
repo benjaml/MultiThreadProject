@@ -9,6 +9,7 @@ void MultiThreadGame::RegisterClient(MultiThreadClient* pClient)
     if (pClient != NULL)
     {
         lock.lock();
+        std::cout << "Registered client : " << pClient->ClientId.ToString() << std::endl;
         clients[pClient->ClientId] = pClient;
         lock.unlock();
     }
@@ -122,7 +123,6 @@ void MultiThreadGame::ProcessMessages()
     while (!MessageStack.empty())
     {
         Message* message = MessageStack.front();
-        MessageStack.pop();
         switch (message->Type)
         {
         case Message::MessageType::PickItem:
@@ -192,7 +192,16 @@ void MultiThreadGame::ProcessMessages()
             RegisterPlayerMessage* pMessage = (RegisterPlayerMessage*)message;
 
             MultiThreadClient* client = MultiThreadClient::CreateFromRegisterPlayerMessage(pMessage);
-            MultiThreadGame::Instance.RegisterClient(client);
+
+            // Make sure the client is not already existing before registering it
+            if (clients.find(client->ClientId) == clients.end())
+            {
+                MultiThreadGame::Instance.RegisterClient(client);
+            }
+            else
+            {
+                delete client;
+            }
         }
 
         break;
@@ -202,7 +211,8 @@ void MultiThreadGame::ProcessMessages()
             break;
         }
 
-        delete message;
+        delete MessageStack.front();
+        MessageStack.pop();
     }
 }
 

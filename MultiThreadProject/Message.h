@@ -81,18 +81,15 @@ struct GiveItemMessage : Message
 
 struct RegisterPlayerMessage : Message
 {
-	char* inventoryBuffer;
-	size_t inventoryBufferSize;
+	std::string InventoryString;
 
 	RegisterPlayerMessage()
 	{
 		Type = Message::MessageType::RegisterPlayer;
-		inventoryBuffer = NULL;
-		inventoryBufferSize = 0;
 	}
 
 	virtual const size_t size() override
 	{
-		return sizeof(Message) + inventoryBufferSize + sizeof(inventoryBufferSize);
+		return sizeof(Message) + sizeof(InventoryString);
 	}
 };

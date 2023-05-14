@@ -2,6 +2,8 @@
 #include <thread>
 #include <iostream>
 #include <conio.h>
+#include <ctime>
+#include <stdlib.h> 
 #include "Common.h"
 
 // Need to link with Ws2_32.lib
@@ -17,6 +19,14 @@ SOCKET ClientSocket = INVALID_SOCKET;
 
 std::unordered_map<Game::GUID, SOCKET> clients;
 
+void BroadcastMessage(Message* message)
+{
+    for (auto iterator = clients.begin(); iterator != clients.end(); ++iterator)
+    {
+        SendNetworkMessage(message, (*iterator).second);
+    }
+}
+
 void OnMessageReceived(char* buffer, SOCKET socket)
 {
     Message* pBaseMessage = (Message*)buffer;
@@ -25,7 +35,9 @@ void OnMessageReceived(char* buffer, SOCKET socket)
     case Message::MessageType::PickItem:
     {
         printf("Received PickItem message\n");
-        PickItemMessage* pMessage = (PickItemMessage*)buffer;
+        PickItemMessage* pMessage = new PickItemMessage(*(PickItemMessage*)buffer);
+        // Apply
+        BroadcastMessage(pMessage);
         MultiThreadGame::Instance.QueueMessage(pMessage);
         break;
     }
@@ -33,6 +45,9 @@ void OnMessageReceived(char* buffer, SOCKET socket)
     {
         printf("Received DropItem message\n");
         DropItemMessage* pMessage = (DropItemMessage*)buffer;
+        // Validate first
+        // Apply
+        BroadcastMessage(pMessage);
         MultiThreadGame::Instance.QueueMessage(pMessage);
         break;
     }
@@ -40,6 +55,9 @@ void OnMessageReceived(char* buffer, SOCKET socket)
     {
         printf("Received GiveItem message\n");
         GiveItemMessage* pMessage = (GiveItemMessage*)buffer;
+        // Validate first
+        // Apply
+        BroadcastMessage(pMessage);
         MultiThreadGame::Instance.QueueMessage(pMessage);
         break;
     }
@@ -91,14 +109,17 @@ void RegisterClientThread()
         {
             MultiThreadClient* client = new MultiThreadClient();
             clients[client->ClientId] = Socket;
-            MultiThreadGame::Instance.RegisterClient(client);
             MultiThreadGame::Instance.ApplyOnEachClient([Socket](MultiThreadClient* client) 
                 {
                     RegisterPlayerMessage message;
-                    message.ClientGUID = client->ClientId;
                     client->FillRegisterPlayerMessageContent(&message);
                     SendNetworkMessage(&message, Socket);
                 });
+
+            MultiThreadGame::Instance.RegisterClient(client);
+            RegisterPlayerMessage message;
+            client->FillRegisterPlayerMessageContent(&message);
+            BroadcastMessage(&message);
         }
     }
 
@@ -148,6 +169,12 @@ void ReceiveMessageThread()
 int ServerMain()
 {
     std::thread inputThread(ServerInputThread);
+
+    // setup random
+    time_t timer;
+    time(&timer);
+    srand(timer);
+
     // Window Socket data
     WSADATA wsaData;
     int iResult;

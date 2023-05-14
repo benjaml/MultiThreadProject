@@ -19,5 +19,6 @@ void SendNetworkMessage(Message* order, SOCKET socket)
         printf("send failed with error: %d\n", WSAGetLastError());
         closesocket(socket);
         WSACleanup();
+        running = false;
     }
 }

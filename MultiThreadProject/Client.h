@@ -2,6 +2,8 @@
 #include <thread>
 #include <iostream>
 #include <conio.h>
+#include <ctime>
+#include <stdlib.h> 
 #include "Common.h"
 
 using namespace std::literals::chrono_literals;
@@ -69,6 +71,7 @@ void ClientProcessInput(char input)
             printf("shutdown failed with error: %d\n", WSAGetLastError());
             closesocket(ConnectSocket);
             WSACleanup();
+            running = false;
         }
 
         break;
@@ -160,7 +163,10 @@ void ReceiveMessageThread()
         else if (iResult == 0)
             printf("Connection closed\n");
         else
+        {
             printf("recv failed with error: %d\n", WSAGetLastError());
+            running = false;
+        }
 
     } while (iResult > 0 || running);
 }
@@ -168,6 +174,10 @@ void ReceiveMessageThread()
 int ClientMain()
 {
     std::thread inputThread(ClientInputThread);
+    // setup random
+    time_t timer;
+    time(&timer);
+    srand(timer);
 
     WSADATA wsaData;
     struct addrinfo* result = NULL,

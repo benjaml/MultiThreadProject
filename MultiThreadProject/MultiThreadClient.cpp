@@ -26,25 +26,28 @@ int MultiThreadClient::GetItemCount(std::string name)
 
 void MultiThreadClient::FillRegisterPlayerMessageContent(RegisterPlayerMessage* message)
 {
+    message->ClientGUID = ClientId;
     std::string inventoryString;
     for (auto iterator = inventory.begin(); iterator != inventory.end(); ++iterator)
     {
         inventoryString += (*iterator).first + ":" + std::to_string((*iterator).second) + "/";
     }
 
-    // Clean last "/"
-    inventoryString.erase(inventoryString.end());
+    if (!inventoryString.empty())
+    {
+        // Clean last "/"
+        inventoryString.erase(inventoryString.end() - 1);
 
-    message->inventoryBufferSize = inventoryString.size();
-    memcpy(message->inventoryBuffer, inventoryString.c_str(), message->inventoryBufferSize);
+        message->InventoryString = inventoryString;
+    }
 }
 
 MultiThreadClient* MultiThreadClient::CreateFromRegisterPlayerMessage(RegisterPlayerMessage* message)
 {
     MultiThreadClient* client = new MultiThreadClient(message->ClientGUID);
-    if (message->inventoryBuffer != NULL)
+    if (!message->InventoryString.empty())
     {
-        std::istringstream stringStream(message->inventoryBuffer);
+        std::istringstream stringStream(message->InventoryString);
         std::string substring;
         while (std::getline(stringStream, substring, '/'))
         {
